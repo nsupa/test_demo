@@ -1,0 +1,271 @@
+---
+title: "Projet(Partie2- la présence de pluie le lendemain)"
+author: "Supathini"
+date: "07/08/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+Meteo=meteo_train <- read_csv("meteo.train.csv")
+View(meteo_train)
+```
+
+
+
+on Crée une nouvelle covariable pour Season
+```{r}
+library(zoo)
+```
+
+```{r}
+Meteo$date<-as.Date(with(Meteo,paste(Year,Month,Day,sep="-")),"%Y-%m-%d")
+yq<-as.yearqtr(as.yearmon(Meteo$date,"%m-%d-%y")+1/12)
+Meteo$Season<-factor(format(yq,"%q"),levels = 1:4,labels = c("winter","spring","summer","fall"))
+```
+
+```{r}
+MeteoData=subset(Meteo,select=c(1,7:50))
+MeteoData
+```
+
+
+
+```{r}
+library(readr)
+Meteotest=meteo_test <- read_csv("meteo.test.csv")
+View(meteo_test)
+```
+
+
+
+
+```{r}
+Meteotest$date<-as.Date(with(Meteotest,paste(Year,Month,Day,sep="-")),"%Y-%m-%d")
+yq<-as.yearqtr(as.yearmon(Meteotest$date,"%m-%d-%y")+1/12)
+Meteotest$Season<-factor(format(yq,"%q"),levels = 1:4,labels = c("winter","spring","summer","fall"))
+```
+
+
+```{r}
+glm1=glm(pluie.demain~.-X1-date,data=MeteoData,family=binomial)
+summary(glm1)
+```
+
+
+##Représentation des corrélations entre variables
+```{r}
+Meteocor<-subset(MeteoData,select=c(2:43))
+datacor<-cor(Meteocor)
+```
+
+```{r}
+dim(datacor)
+```
+
+```{r}
+library(corrplot)
+require(corrplot)
+test <- matrix(datacor, nrow=42, ncol=42)
+corrplot(test)
+```
+Quleques variables sont corrélées
+1.les covariables Temperature daily mean,Temperature daily max,Temperature daily min.,et Temp.demain 
+2.mean sea level pressure.daily.mean.MSL ,mean sea level pressure.daily.max.MSL et mean sea level pressure.daily.min.MSL 
+3.wind.speed.daily.mean.10m.above.gnd et wind.speed.daily.mean.80m.above.gnd
+4.Wind.Direction.daily.mean..10.m.above.gnd et Wind.Direction.daily.mean..80.m.above.gnd
+5.Wind.Speed.daily.mean..900.mb et Wind.Speed.daily.max..900.mb
+```{r}
+glm2=glm(pluie.demain~.-X1-date-Temperature.daily.mean..2.m.above.gnd.-Temperature.daily.min..2.m.above.gnd.-Relative.Humidity.daily.min..2.m.above.gnd.-Relative.Humidity.daily.max..2.m.above.gnd.-Low.Cloud.Cover.daily.mean..low.cld.lay. -Wind.Direction.daily.mean..10.m.above.gnd.-Sunshine.Duration.daily.sum..sfc.-Mean.Sea.Level.Pressure.daily.max..MSL.-Wind.Speed.daily.max..80.m.above.gnd.-Wind.Speed.daily.mean..900.mb.-Wind.Speed.daily.mean..10.m.above.gnd.,data=MeteoData,family=binomial)
+summary(glm2)
+```
+
+
+```{r}
+anova(glm1,glm2,test='LRT')
+```
+P-value est >0.05 grand,on préfere le modele glm2,
+
+##on Analyse la déviance
+ La sortie nous indique
+ Null deviance: 1635.4  on 1179  degrees of freedom
+ Residual deviance: 1224.9  on 1148  degrees of freedom
+ 
+```{r}
+pchisq(1635.4-1224.9,1179-1148, lower = F)
+pchisq(1224.9,1148, lower = F)
+```
+ ##On commence par comparer  le modéle glm2 au modéle sans covariable
+On obtient une p-valeur trés faible : on rejette le modéle sans covariable.  le Modéle(glm2) est donc utile.
+# Comparons maintenant  modéle(gml2) au modéle saturé
+
+Là aussi, la p-valeur est faible : on rejette donc le modéle(glm2) et on préfére le modéle saturé. Autrement dit, le modéle(gml2) n'est pas suffisant.
+ 
+
+Nous pouvons supprimer les variables qui ne sont pas significantes
+
+```{r}
+glm3=glm(pluie.demain ~ Snowfall.amount.raw.daily.sum..sfc. +Wind.Speed.daily.mean..80.m.above.gnd.+Wind.Direction.daily.mean..900.mb. +Mean.Sea.Level.Pressure.daily.min..MSL.+Medium.Cloud.Cover.daily.max..mid.cld.lay.+Wind.Speed.daily.max..10.m.above.gnd.+ Wind.Speed.daily.min..10.m.above.gnd.+Season  ,data=MeteoData,family=binomial)
+summary(glm3)
+```
+
+on utilise aussi stepwise method et compare AIC
+
+```{r}
+glm4=step(glm1,data=MeteoData,family=binomial)
+```
+AIC=1261
+
+
+```{r}
+glm6=glm(pluie.demain ~  Snowfall.amount.raw.daily.sum..sfc. + 
+    Total.Cloud.Cover.daily.mean..sfc. + Wind.Speed.daily.mean..80.m.above.gnd. + 
+    Wind.Direction.daily.mean..80.m.above.gnd. + Wind.Direction.daily.mean..900.mb. + 
+    Temperature.daily.max..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.min..MSL. + 
+     Medium.Cloud.Cover.daily.max..mid.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Wind.Speed.daily.min..10.m.above.gnd. + 
+    temp.demain + Season,data=MeteoData,family=binomial)
+summary(glm6)
+```
+
+
+```{r}
+glm5=glm(pluie.demain ~  Snowfall.amount.raw.daily.sum..sfc. + 
+    Total.Cloud.Cover.daily.mean..sfc. + Wind.Speed.daily.mean..80.m.above.gnd. 
+     + Wind.Direction.daily.mean..900.mb.  + Temperature.daily.max..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.min..MSL.  + Medium.Cloud.Cover.daily.max..mid.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. +temp.demain+Season+ Wind.Speed.daily.min..10.m.above.gnd.  ,data=MeteoData,family=binomial)
+summary(glm5)
+```
+
+
+
+```{r}
+Model11=glm(pluie.demain ~   Temperature.daily.mean..2.m.above.gnd.+ 
+    Total.Cloud.Cover.daily.mean..sfc. + Wind.Speed.daily.mean..80.m.above.gnd. + 
+    Wind.Direction.daily.mean..80.m.above.gnd. + Wind.Direction.daily.mean..900.mb. + 
+    Wind.Gust.daily.mean..sfc.  + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+      
+    High.Cloud.Cover.daily.max..high.cld.lay. + Medium.Cloud.Cover.daily.max..mid.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Wind.Speed.daily.min..10.m.above.gnd. + temp.demain+ Season,data=MeteoData,family=binomial)
+summary(Model11)
+```
+
+```{r}
+Model12=glm(pluie.demain ~   Temperature.daily.max..2.m.above.gnd.+ 
+    Total.Cloud.Cover.daily.mean..sfc. + Wind.Speed.daily.mean..80.m.above.gnd.  + Wind.Direction.daily.mean..900.mb.   + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+      
+    Medium.Cloud.Cover.daily.max..mid.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Wind.Speed.daily.min..10.m.above.gnd. +Season+ temp.demain,data=MeteoData,family=binomial)
+summary(Model12)
+```
+
+
+
+
+
+
+
+
+On fait une prédiction sur de nouvelles données et on calcule Accuracy de notre modéle(glm5).
+
+
+```{r}
+pred1 = predict(glm5, newdata = Meteotest,type  = "response")
+pred5 = (pred1 >= 0.5)
+table(pred5, Meteotest$pluie.demain)
+mean(pred5 == (Meteotest $pluie.demain))
+accuracy <- 1-mean(pred5 != Meteotest$pluie.demain)
+accuracy
+
+
+```
+ ##  on évalue l'erreur de prédiction
+
+
+```{r}
+mean(abs(pred5 - (Meteotest$pluie.demain == "TRUE")))
+```
+
+
+on calcule Accuracy for modéle(Model11).
+
+```{r}
+pred2 = predict(Model11, newdata = Meteotest,type  = "response")
+predM = (pred2 >= 0.5)
+table(predM, Meteotest$pluie.demain)
+mean(predM == (Meteotest $pluie.demain))
+```
+
+```{r}
+accuracy <- 1-mean(predM != Meteotest$pluie.demain)
+accuracy
+
+```
+
+```{r}
+mean(abs(predM - Meteotest$pluie.demain), na.rm = T)
+```
+
+
+```{r}
+AIC(glm5,Model11)
+```
+
+
+on choisit le modéle qui donne l'erreur la plus basse et le model avec un AIC inférieur est toujours préféré.
+donc on préfere le modele est glm5
+
+
+```{r}
+
+```
+
+on utilise ce modéle pour prédire sur l'ensemble de données de test.
+
+```{r}
+x1=data.frame(Year = Meteotest$date,pluie.demain = Meteotest$pluie.demain, Predicted = pred5)
+x1
+```
+
+```{r}
+ write.csv(x1,file="Prédiction(pluie).csv")
+
+```
+
+####ROC curve
+```{r}
+library(ROCR)
+```
+
+```{r}
+pred.rocr <- prediction(pred1, Meteotest$pluie.demain)
+ROCRperf <- performance(pred.rocr, measure='tpr', x.measure='fpr')
+plot(ROCRperf,colorize=TRUE)
+
+```
+Calculate the Area under curve(AUC)
+```{r}
+performance(pred.rocr, "auc")@y.values[[1]] 
+```
+
+Auc est 0.76 qui indique que notre modélé est bon.
+
+
+
+
+
+
+
+
+```{r}
+
+```
+
