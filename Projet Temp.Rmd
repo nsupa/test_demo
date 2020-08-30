@@ -1,0 +1,321 @@
+---
+title: " Modéle linéaire regression(Part1-la température moyenne du lendemain) "
+author: "Supathini"
+date: "30/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+La variable d’intérêt est  temp.demain 
+
+
+
+```{r}
+library(readr)
+Meteo=meteo_train <- read_csv("meteo.train.csv")
+View(meteo_train)
+```
+
+
+on Crée une nouvelle covariable pour Season
+```{r}
+library(zoo)
+```
+
+
+```{r}
+Meteo$date<-as.Date(with(Meteo,paste(Year,Month,Day,sep="-")),"%Y-%m-%d")
+yq<-as.yearqtr(as.yearmon(Meteo$date,"%m-%d-%y")+1/12)
+Meteo$Season<-factor(format(yq,"%q"),levels = 1:4,labels = c("winter","spring","summer","fall"))
+
+
+```
+
+
+```{r}
+MeteoData=subset(Meteo,select=c(1,7:50))
+```
+
+```{r}
+MeteoData$pluie.demain<-as.factor(MeteoData$pluie.demain)
+View(MeteoData)
+```
+
+
+```{r}
+library(readr)
+Meteotest=meteo_test <- read_csv("meteo.test.csv")
+
+```
+
+on Crée une nouvelle covariable pour Season
+```{r}
+library(zoo)
+Meteotest$date<-as.Date(with(Meteotest,paste(Year,Month,Day,sep="-")),"%Y-%m-%d")
+yq<-as.yearqtr(as.yearmon(Meteotest$date,"%m-%d-%y")+1/12)
+Meteotest$Season<-factor(format(yq,"%q"),levels = 1:4,labels = c("winter","spring","summer","fall"))
+Meteotest$pluie.demain<-as.factor(Meteotest$pluie.demain)
+```
+
+
+
+```{r}
+Model1=lm(temp.demain~.-X1-date,data=MeteoData)
+summary(Model1)
+```
+
+On vérifie sur nos données,
+les graphes des résidus pour validation modèle
+```{r}
+plot(Model1)
+```
+
+
+Le modèle permet de montrer une modélisation satisfaisante.
+
+```{r}
+M0 = lm(temp.demain ~1,data=MeteoData)
+anova(M0,Model1)
+```
+On commence par comparer notre modele au modele sans covariable
+p-value<0.05, on préfère le le modele Model1
+
+
+
+
+
+
+
+
+##Essayons d'exécuter la methode step(Forward) et step(backward)sur le modèle Model1 ,en utilisant AIC et voyons quelles variables deviendrons plus significatives,apres avoir abandonné certaines d'entre elles.
+
+
+```{r}
+library(MASS)
+```
+
+```{r}
+Modelforward=step(lm(temp.demain~1,data=MeteoData),temp.demain~Temperature.daily.mean..2.m.above.gnd. + Relative.Humidity.daily.mean..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.mean..MSL. + Total.Precipitation.daily.sum..sfc. + 
+    Snowfall.amount.raw.daily.sum..sfc. + Total.Cloud.Cover.daily.mean..sfc. + 
+    High.Cloud.Cover.daily.mean..high.cld.lay. + Medium.Cloud.Cover.daily.mean..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.mean..low.cld.lay. + Sunshine.Duration.daily.sum..sfc. + 
+    Shortwave.Radiation.daily.sum..sfc. + Wind.Speed.daily.mean..10.m.above.gnd. + 
+    Wind.Direction.daily.mean..10.m.above.gnd. + Wind.Speed.daily.mean..80.m.above.gnd. + 
+    Wind.Direction.daily.mean..80.m.above.gnd. + Wind.Speed.daily.mean..900.mb. + 
+    Wind.Direction.daily.mean..900.mb. + Wind.Gust.daily.mean..sfc. + 
+    Temperature.daily.max..2.m.above.gnd. + Temperature.daily.min..2.m.above.gnd. + 
+    Relative.Humidity.daily.max..2.m.above.gnd. + Relative.Humidity.daily.min..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.max..MSL. + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+    Total.Cloud.Cover.daily.max..sfc. + Total.Cloud.Cover.daily.min..sfc. + 
+    High.Cloud.Cover.daily.max..high.cld.lay. + High.Cloud.Cover.daily.min..high.cld.lay. + 
+    Medium.Cloud.Cover.daily.max..mid.cld.lay. + Medium.Cloud.Cover.daily.min..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.max..low.cld.lay. + Low.Cloud.Cover.daily.min..low.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Wind.Speed.daily.min..10.m.above.gnd. + 
+    Wind.Speed.daily.max..80.m.above.gnd. + Wind.Speed.daily.min..80.m.above.gnd. + 
+    Wind.Speed.daily.max..900.mb. + Wind.Speed.daily.min..900.mb. + 
+    Wind.Gust.daily.max..sfc. + Wind.Gust.daily.min..sfc. + pluie.demain + 
+    + Season,data=MeteoData,direction = "forward")
+```
+
+et puis,
+On enlève les covariables qui ne sont pas significants et on considére aussi les corrélations entre les covariables.(Part2)
+
+
+
+
+
+
+
+```{r}
+
+Modelforward1=lm(temp.demain ~ Temperature.daily.mean..2.m.above.gnd.+ pluie.demain + Shortwave.Radiation.daily.sum..sfc. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Temperature.daily.max..2.m.above.gnd. + 
+    Wind.Speed.daily.mean..80.m.above.gnd. + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+    Wind.Direction.daily.mean..900.mb. +Season  + Low.Cloud.Cover.daily.mean..low.cld.lay. + 
+    Relative.Humidity.daily.min..2.m.above.gnd. + 
+    Low.Cloud.Cover.daily.max..low.cld.lay. + Wind.Speed.daily.mean..900.mb. + Wind.Speed.daily.min..900.mb.,data = MeteoData)
+summary((Modelforward1))
+
+```
+
+
+
+
+
+```{r}
+Modelbackward=step(Model1,data=MeteoData,direction = "backward")
+```
+
+
+```{r}
+Modelbackward1=lm(temp.demain ~  Mean.Sea.Level.Pressure.daily.mean..MSL. +  Temperature.daily.mean..2.m.above.gnd.+
+    pluie.demain +
+     Low.Cloud.Cover.daily.mean..low.cld.lay. + 
+    Shortwave.Radiation.daily.sum..sfc. + 
+    Wind.Speed.daily.mean..80.m.above.gnd. + Wind.Speed.daily.mean..900.mb. + 
+    Wind.Direction.daily.mean..900.mb.+ 
+    Temperature.daily.min..2.m.above.gnd. 
+     +Wind.Speed.daily.max..10.m.above.gnd. + 
+   Wind.Speed.daily.min..900.mb. + Season,data=MeteoData)
+summary(Modelbackward1)
+```
+
+
+
+
+
+
+
+```{r}
+library(leaps)
+```
+
+
+```{r}
+library(leaps)
+
+regmodel=regsubsets(temp.demain~Temperature.daily.mean..2.m.above.gnd. + Relative.Humidity.daily.mean..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.mean..MSL. + Total.Precipitation.daily.sum..sfc. + 
+    Snowfall.amount.raw.daily.sum..sfc. + Total.Cloud.Cover.daily.mean..sfc. + 
+    High.Cloud.Cover.daily.mean..high.cld.lay. + Medium.Cloud.Cover.daily.mean..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.mean..low.cld.lay. + Sunshine.Duration.daily.sum..sfc. + 
+    Shortwave.Radiation.daily.sum..sfc. + Wind.Speed.daily.mean..10.m.above.gnd. + 
+    Wind.Direction.daily.mean..10.m.above.gnd. + Wind.Speed.daily.mean..80.m.above.gnd. + 
+    Wind.Direction.daily.mean..80.m.above.gnd. + Wind.Speed.daily.mean..900.mb. + 
+    Wind.Direction.daily.mean..900.mb. + Wind.Gust.daily.mean..sfc. + 
+    Temperature.daily.max..2.m.above.gnd. + Temperature.daily.min..2.m.above.gnd. + 
+    Relative.Humidity.daily.max..2.m.above.gnd. + Relative.Humidity.daily.min..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.max..MSL. + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+    Total.Cloud.Cover.daily.max..sfc. + Total.Cloud.Cover.daily.min..sfc. + 
+    High.Cloud.Cover.daily.max..high.cld.lay. + High.Cloud.Cover.daily.min..high.cld.lay. + 
+    Medium.Cloud.Cover.daily.max..mid.cld.lay. + Medium.Cloud.Cover.daily.min..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.max..low.cld.lay. + Low.Cloud.Cover.daily.min..low.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd. + Wind.Speed.daily.min..10.m.above.gnd. + 
+    Wind.Speed.daily.max..80.m.above.gnd. + Wind.Speed.daily.min..80.m.above.gnd. + 
+    Wind.Speed.daily.max..900.mb. + Wind.Speed.daily.min..900.mb. + 
+    Wind.Gust.daily.max..sfc. + Wind.Gust.daily.min..sfc. + pluie.demain + 
+    + Season,nbest=1,int=T,nvmax = 42,method="exhaustive",data=MeteoData)
+resu=summary(regmodel)
+print(regmodel)
+```
+
+
+on regarde R square ,R square ajusté, Cp de Mallows et du critère BIC.
+```{r}
+
+plot(regmodel,scale = "Cp")
+plot(regmodel,scale = "bic")
+
+plot(regmodel,scale = "r2")
+plot(regmodel,scale = "adjr2")
+
+```
+
+
+
+```{r}
+regmodel1=lm(temp.demain~Temperature.daily.mean..2.m.above.gnd. + Relative.Humidity.daily.mean..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.mean..MSL. + 
+    Snowfall.amount.raw.daily.sum..sfc. + Medium.Cloud.Cover.daily.mean..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.mean..low.cld.lay.  + 
+    Shortwave.Radiation.daily.sum..sfc.  + Wind.Speed.daily.mean..80.m.above.gnd. + 
+     Wind.Speed.daily.mean..900.mb. + 
+    Wind.Direction.daily.mean..900.mb. + 
+    Temperature.daily.max..2.m.above.gnd. + Temperature.daily.min..2.m.above.gnd. + 
+    Relative.Humidity.daily.max..2.m.above.gnd. + 
+    Mean.Sea.Level.Pressure.daily.max..MSL. + Mean.Sea.Level.Pressure.daily.min..MSL. + 
+    Total.Cloud.Cover.daily.max..sfc. + Total.Cloud.Cover.daily.min..sfc. + 
+    High.Cloud.Cover.daily.max..high.cld.lay. + High.Cloud.Cover.daily.min..high.cld.lay. + 
+    Medium.Cloud.Cover.daily.max..mid.cld.lay. + Medium.Cloud.Cover.daily.min..mid.cld.lay. + 
+    Low.Cloud.Cover.daily.max..low.cld.lay. + 
+    Wind.Speed.daily.max..10.m.above.gnd.  + Wind.Speed.daily.min..80.m.above.gnd.
+     + Wind.Speed.daily.min..900.mb. 
+     + pluie.demain + 
+    + Season,data=MeteoData)
+summary(regmodel1)
+```
+
+```{r}
+regmodel2= lm(temp.demain ~ Temperature.daily.mean..2.m.above.gnd.  + Low.Cloud.Cover.daily.mean..low.cld.lay. + 
+    Shortwave.Radiation.daily.sum..sfc.  + 
+    Wind.Speed.daily.mean..80.m.above.gnd. + 
+    Wind.Direction.daily.mean..900.mb. + 
+    Temperature.daily.min..2.m.above.gnd. +Mean.Sea.Level.Pressure.daily.min..MSL.+Wind.Speed.daily.max..10.m.above.gnd. + 
+    +  pluie.demain +Season,data=MeteoData)
+summary(regmodel2)
+
+```
+
+
+```{r}
+AIC(Modelforward1,Modelbackward1,regmodel2)
+```
+
+
+compare AIC(Stepforward,stepbacward,regmodel),on préfere le model Modelbackward1.
+
+
+et puis,
+on veut tester la pertinence des termes d'interaction entre les variables Temperature.daily.min..2.m.above.gnd.et pluie
+
+
+```{r}
+Modelint=lm(temp.demain ~  Mean.Sea.Level.Pressure.daily.mean..MSL. +  Temperature.daily.mean..2.m.above.gnd. +
+     Low.Cloud.Cover.daily.mean..low.cld.lay. + 
+    Shortwave.Radiation.daily.sum..sfc. + 
+    Wind.Speed.daily.mean..80.m.above.gnd. + Wind.Speed.daily.mean..900.mb. + 
+    Wind.Direction.daily.mean..900.mb.+ 
+    Temperature.daily.min..2.m.above.gnd.:pluie.demain 
+     +Wind.Speed.daily.max..10.m.above.gnd. + 
+   Wind.Speed.daily.min..900.mb. + Season,data=MeteoData)
+summary(Modelint)
+```
+
+```{r}
+AIC(Modelint)
+```
+
+```{r}
+anova(Modelbackward1,Modelint)
+```
+
+p_value<0.05, il ya d'interaction entre pluie et la température journalière minimale.
+
+on préfèfere le model avec l'interaction.
+
+
+
+
+
+les résultats ci-dessus montrent que le modèle R-square est très fort et toutes les variables sont significatives.
+
+
+
+on utilise ce modéle pour prédire sur l'ensemble de données de test.
+
+```{r}
+predlm = predict(Modelint, newdata = Meteotest)
+
+```
+
+
+```{r}
+xlm=data.frame(Year = Meteotest$date,temp.demain = Meteotest$temp.demain, Predicted = predlm)
+xlm
+```
+
+
+
+
+```{r}
+ write.csv(xlm,file="Prédiction(temp).csv")
+```
+
+
+
+
+
+
